@@ -21,11 +21,11 @@ metadata:
     containerImage: quay.io/opentelemetry/opentelemetry-operator
     createdAt: "2020-12-16T13:37:00+00:00"
     description: Provides the OpenTelemetry components, including the Collector
-    operators.operatorframework.io/builder: operator-sdk-v1.3.0
-    operators.operatorframework.io/project_layout: go
+    operators.operatorframework.io/builder: operator-sdk-v1.7.1+git
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: github.com/open-telemetry/opentelemetry-operator
     support: OpenTelemetry Community
-  name: opentelemetry-operator.v0.21.0
+  name: opentelemetry-operator.v0.27.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -126,6 +126,18 @@ spec:
           - update
           - watch
         - apiGroups:
+          - apps
+          resources:
+          - statefulsets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - coordination.k8s.io
           resources:
           - leases
@@ -203,10 +215,10 @@ spec:
                 resources:
                   limits:
                     cpu: 100m
-                    memory: 30Mi
+                    memory: 128Mi
                   requests:
                     cpu: 100m
-                    memory: 20Mi
+                    memory: 64Mi
                 volumeMounts:
                 - mountPath: /tmp/k8s-webhook-server/serving-certs
                   name: cert
@@ -284,7 +296,7 @@ spec:
   maturity: alpha
   provider:
     name: OpenTelemetry Community
-  version: 0.21.0
+  version: 0.27.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
