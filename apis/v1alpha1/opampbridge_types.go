@@ -26,6 +26,13 @@ type OpAMPBridgeSpec struct {
 	// Description allows the customization of the non identifying attributes for the OpAMP Bridge.
 	// +optional
 	Description *AgentDescription `json:"description,omitempty"`
+	// Mode selects the operating mode: "operator" (default) or "standalone".
+	// +optional
+	// +kubebuilder:validation:Enum=operator;standalone
+	Mode string `json:"mode,omitempty" yaml:"mode,omitempty"`
+	// Standalone configures bridge-managed standalone workloads.
+	// +optional
+	Standalone *OpAMPBridgeStandaloneConfig `json:"standalone,omitempty" yaml:"standalone,omitempty"`
 	// Resources to set on the OpAMPBridge pods.
 	// +optional
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
@@ -118,6 +125,54 @@ type AgentDescription struct {
 	// NonIdentifyingAttributes are a map of key-value pairs that may be specified to provide
 	// extra information about the agent to the OpAMP server.
 	NonIdentifyingAttributes map[string]string `json:"non_identifying_attributes"`
+}
+
+type OpAMPBridgeStandaloneConfig struct {
+	// Agents configures the standalone workloads managed by the OpAMP Bridge.
+	// +optional
+	// +listType=atomic
+	Agents []OpAMPBridgeStandaloneAgentConfig `json:"agents,omitempty" yaml:"agents,omitempty"`
+}
+
+type OpAMPBridgeStandaloneAgentConfig struct {
+	// Namespace is the namespace of the standalone workload and config resources.
+	// +required
+	Namespace string `json:"namespace" yaml:"namespace"`
+	// Type is the OpAMP agent type reported for this standalone workload.
+	// +required
+	Type string `json:"type" yaml:"type"`
+	// WorkloadRef identifies the Kubernetes workload restarted after remote config changes.
+	// +required
+	WorkloadRef OpAMPBridgeStandaloneWorkloadRef `json:"workloadRef" yaml:"workloadRef"`
+	// Config maps OpAMP remote config names to Kubernetes config sources.
+	// +required
+	Config map[string]OpAMPBridgeStandaloneConfigEntry `json:"config" yaml:"config"`
+}
+
+type OpAMPBridgeStandaloneWorkloadRef struct {
+	// APIVersion is the API version of the standalone workload.
+	// +required
+	APIVersion string `json:"apiVersion" yaml:"apiVersion"`
+	// Kind is the kind of standalone workload.
+	// +required
+	// +kubebuilder:validation:Enum=Deployment;DaemonSet;StatefulSet
+	Kind string `json:"kind" yaml:"kind"`
+	// Name is the name of the standalone workload.
+	// +required
+	Name string `json:"name" yaml:"name"`
+}
+
+type OpAMPBridgeStandaloneConfigEntry struct {
+	// Kind is the kind of Kubernetes config source.
+	// +required
+	// +kubebuilder:validation:Enum=configmap
+	Kind string `json:"kind" yaml:"kind"`
+	// Name is the name of the Kubernetes config source.
+	// +required
+	Name string `json:"name" yaml:"name"`
+	// Key is the key within the Kubernetes config source.
+	// +required
+	Key string `json:"key" yaml:"key"`
 }
 
 // +kubebuilder:object:root=true

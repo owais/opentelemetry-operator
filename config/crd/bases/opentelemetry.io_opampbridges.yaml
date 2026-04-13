@@ -621,6 +621,11 @@ spec:
                 type: array
               ipFamilyPolicy:
                 type: string
+              mode:
+                enum:
+                - operator
+                - standalone
+                type: string
               nodeSelector:
                 additionalProperties:
                   type: string
@@ -870,6 +875,58 @@ spec:
                 type: object
               serviceAccount:
                 type: string
+              standalone:
+                properties:
+                  agents:
+                    items:
+                      properties:
+                        config:
+                          additionalProperties:
+                            properties:
+                              key:
+                                type: string
+                              kind:
+                                enum:
+                                - configmap
+                                type: string
+                              name:
+                                type: string
+                            required:
+                            - key
+                            - kind
+                            - name
+                            type: object
+                          type: object
+                        namespace:
+                          type: string
+                        type:
+                          type: string
+                        workloadRef:
+                          properties:
+                            apiVersion:
+                              type: string
+                            kind:
+                              enum:
+                              - Deployment
+                              - DaemonSet
+                              - StatefulSet
+                              type: string
+                            name:
+                              type: string
+                          required:
+                          - apiVersion
+                          - kind
+                          - name
+                          type: object
+                      required:
+                      - config
+                      - namespace
+                      - type
+                      - workloadRef
+                      type: object
+                    type: array
+                    x-kubernetes-list-type: atomic
+                type: object
               tolerations:
                 items:
                   properties:

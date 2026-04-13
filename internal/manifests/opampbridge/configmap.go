@@ -45,6 +45,14 @@ func ConfigMap(params manifests.Params) (*corev1.ConfigMap, error) {
 		}
 	}
 
+	if params.OpAMPBridge.Spec.Mode != "" {
+		config["mode"] = params.OpAMPBridge.Spec.Mode
+	}
+
+	if params.OpAMPBridge.Spec.Standalone != nil {
+		config["standalone"] = params.OpAMPBridge.Spec.Standalone
+	}
+
 	configYAML, err := yaml.Marshal(config)
 	if err != nil {
 		return &corev1.ConfigMap{}, err

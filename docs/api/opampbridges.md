@@ -177,6 +177,15 @@ to express the family of an IP expressed by a type (e.g. service.spec.ipFamilies
         </td>
         <td>false</td>
       </tr><tr>
+        <td><b>mode</b></td>
+        <td>enum</td>
+        <td>
+          Mode selects the operating mode: "operator" (default) or "standalone".<br/>
+          <br/>
+            <i>Enum</i>: operator, standalone<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
         <td><b>nodeSelector</b></td>
         <td>map[string]string</td>
         <td>
@@ -251,6 +260,13 @@ default.<br/>
         <td>
           ServiceAccount indicates the name of an existing service account to use with this instance. When set,
 the operator will not automatically create a ServiceAccount for the OpAMPBridge.<br/>
+        </td>
+        <td>false</td>
+      </tr><tr>
+        <td><b><a href="#opampbridgespecstandalone">standalone</a></b></td>
+        <td>object</td>
+        <td>
+          Standalone configures bridge-managed standalone workloads.<br/>
         </td>
         <td>false</td>
       </tr><tr>
@@ -3478,6 +3494,167 @@ May also be set in PodSecurityContext. If set in both SecurityContext and
 PodSecurityContext, the value specified in SecurityContext takes precedence.<br/>
         </td>
         <td>false</td>
+      </tr></tbody>
+</table>
+
+
+### OpAMPBridge.spec.standalone
+<sup><sup>[↩ Parent](#opampbridgespec)</sup></sup>
+
+
+
+Standalone configures bridge-managed standalone workloads.
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Required</th>
+        </tr>
+    </thead>
+    <tbody><tr>
+        <td><b><a href="#opampbridgespecstandaloneagentsindex">agents</a></b></td>
+        <td>[]object</td>
+        <td>
+          Agents configures the standalone workloads managed by the OpAMP Bridge.<br/>
+        </td>
+        <td>false</td>
+      </tr></tbody>
+</table>
+
+
+### OpAMPBridge.spec.standalone.agents[index]
+<sup><sup>[↩ Parent](#opampbridgespecstandalone)</sup></sup>
+
+
+
+
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Required</th>
+        </tr>
+    </thead>
+    <tbody><tr>
+        <td><b><a href="#opampbridgespecstandaloneagentsindexconfigkey">config</a></b></td>
+        <td>map[string]object</td>
+        <td>
+          Config maps OpAMP remote config names to Kubernetes config sources.<br/>
+        </td>
+        <td>true</td>
+      </tr><tr>
+        <td><b>namespace</b></td>
+        <td>string</td>
+        <td>
+          Namespace is the namespace of the standalone workload and config resources.<br/>
+        </td>
+        <td>true</td>
+      </tr><tr>
+        <td><b>type</b></td>
+        <td>string</td>
+        <td>
+          Type is the OpAMP agent type reported for this standalone workload.<br/>
+        </td>
+        <td>true</td>
+      </tr><tr>
+        <td><b><a href="#opampbridgespecstandaloneagentsindexworkloadref">workloadRef</a></b></td>
+        <td>object</td>
+        <td>
+          WorkloadRef identifies the Kubernetes workload restarted after remote config changes.<br/>
+        </td>
+        <td>true</td>
+      </tr></tbody>
+</table>
+
+
+### OpAMPBridge.spec.standalone.agents[index].config[key]
+<sup><sup>[↩ Parent](#opampbridgespecstandaloneagentsindex)</sup></sup>
+
+
+
+
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Required</th>
+        </tr>
+    </thead>
+    <tbody><tr>
+        <td><b>key</b></td>
+        <td>string</td>
+        <td>
+          Key is the key within the Kubernetes config source.<br/>
+        </td>
+        <td>true</td>
+      </tr><tr>
+        <td><b>kind</b></td>
+        <td>enum</td>
+        <td>
+          Kind is the kind of Kubernetes config source.<br/>
+          <br/>
+            <i>Enum</i>: configmap<br/>
+        </td>
+        <td>true</td>
+      </tr><tr>
+        <td><b>name</b></td>
+        <td>string</td>
+        <td>
+          Name is the name of the Kubernetes config source.<br/>
+        </td>
+        <td>true</td>
+      </tr></tbody>
+</table>
+
+
+### OpAMPBridge.spec.standalone.agents[index].workloadRef
+<sup><sup>[↩ Parent](#opampbridgespecstandaloneagentsindex)</sup></sup>
+
+
+
+WorkloadRef identifies the Kubernetes workload restarted after remote config changes.
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Required</th>
+        </tr>
+    </thead>
+    <tbody><tr>
+        <td><b>apiVersion</b></td>
+        <td>string</td>
+        <td>
+          APIVersion is the API version of the standalone workload.<br/>
+        </td>
+        <td>true</td>
+      </tr><tr>
+        <td><b>kind</b></td>
+        <td>enum</td>
+        <td>
+          Kind is the kind of standalone workload.<br/>
+          <br/>
+            <i>Enum</i>: Deployment, DaemonSet, StatefulSet<br/>
+        </td>
+        <td>true</td>
+      </tr><tr>
+        <td><b>name</b></td>
+        <td>string</td>
+        <td>
+          Name is the name of the standalone workload.<br/>
+        </td>
+        <td>true</td>
       </tr></tbody>
 </table>
 

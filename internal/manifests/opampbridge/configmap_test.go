@@ -128,3 +128,64 @@ headers:
 		})
 	}
 }
+
+func TestDesiredConfigMapWithStandaloneMode(t *testing.T) {
+	opampBridge := v1alpha1.OpAMPBridge{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-instance",
+			Namespace: "my-namespace",
+		},
+		Spec: v1alpha1.OpAMPBridgeSpec{
+			Mode: "standalone",
+			Standalone: &v1alpha1.OpAMPBridgeStandaloneConfig{
+				Agents: []v1alpha1.OpAMPBridgeStandaloneAgentConfig{
+					{
+						Namespace: "opentelemetry-opamp-bridge",
+						Type:      "otel-collector",
+						WorkloadRef: v1alpha1.OpAMPBridgeStandaloneWorkloadRef{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+							Name:       "otel-collector",
+						},
+						Config: map[string]v1alpha1.OpAMPBridgeStandaloneConfigEntry{
+							"collector": {
+								Kind: "configmap",
+								Name: "otel-collector-conf",
+								Key:  "otel-collector-config",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cfg := config.New()
+
+	params := manifests.Params{
+		Config:      cfg,
+		OpAMPBridge: opampBridge,
+		Log:         logger,
+	}
+
+	actual, err := ConfigMap(params)
+	assert.NoError(t, err)
+
+	assert.Equal(t, map[string]string{
+		"remoteconfiguration.yaml": `mode: standalone
+standalone:
+  agents:
+  - namespace: opentelemetry-opamp-bridge
+    type: otel-collector
+    workloadRef:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: otel-collector
+    config:
+      collector:
+        kind: configmap
+        name: otel-collector-conf
+        key: otel-collector-config
+`,
+	}, actual.Data)
+}
