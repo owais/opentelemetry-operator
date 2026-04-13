@@ -511,3 +511,58 @@ func LoadFromFile(cfg *Config, configFile string) error {
 	}
 	return nil
 }
+
+func validateNoDuplicateStandaloneConfigKeys(data []byte) error {
+	var root yamlv3.Node
+	if err := yamlv3.Unmarshal(data, &root); err != nil {
+		return fmt.Errorf("error parsing YAML: %w", err)
+	}
+	if len(root.Content) == 0 {
+		return nil
+	}
+	standalone := mappingValue(root.Content[0], "standalone")
+	if standalone == nil {
+		return nil
+	}
+	agents := mappingValue(standalone, "agents")
+	if agents == nil || agents.Kind != yamlv3.SequenceNode {
+		return nil
+	}
+	for i, agent := range agents.Content {
+		configs := mappingValue(agent, "config")
+		if configs == nil || configs.Kind != yamlv3.MappingNode {
+			continue
+		}
+		agentName := fmt.Sprintf("%d", i)
+		if workloadRef := mappingValue(agent, "workloadRef"); workloadRef != nil {
+			name := mappingValue(workloadRef, "name")
+			if name != nil && name.Kind == yamlv3.ScalarNode && name.Value != "" {
+				agentName = name.Value
+			}
+		}
+		seen := map[string]int{}
+		for j := 0; j < len(configs.Content); j += 2 {
+			key := configs.Content[j]
+			if key.Kind != yamlv3.ScalarNode {
+				continue
+			}
+			if firstLine, ok := seen[key.Value]; ok {
+				return fmt.Errorf("standalone agent %q config key %q is duplicated at line %d; first defined at line %d", agentName, key.Value, key.Line, firstLine)
+			}
+			seen[key.Value] = key.Line
+		}
+	}
+	return nil
+}
+
+func mappingValue(node *yamlv3.Node, key string) *yamlv3.Node {
+	if node == nil || node.Kind != yamlv3.MappingNode {
+		return nil
+	}
+	for i := 0; i < len(node.Content); i += 2 {
+		if node.Content[i].Kind == yamlv3.ScalarNode && node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
