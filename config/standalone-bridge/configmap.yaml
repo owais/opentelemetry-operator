@@ -21,6 +21,10 @@ data:
       agents:
         - namespace: opentelemetry-opamp-bridge
           type: otel-collector
+          description:
+            non_identifying_attributes:
+              deployment.environment: production
+              service.namespace: opamp-bridge
           workloadRef:
             apiVersion: apps/v1
             kind: Deployment
@@ -32,6 +36,10 @@ data:
               key: otel-collector-config
         - namespace: opentelemetry-opamp-bridge
           type: otel-agent
+          description:
+            non_identifying_attributes:
+              deployment.environment: production
+              service.namespace: opamp-bridge
           workloadRef:
             apiVersion: apps/v1
             kind: DaemonSet
