@@ -4,6 +4,7 @@
 package operator
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -30,6 +31,10 @@ const (
 )
 
 type ConfigApplier interface {
+	// ShouldApplyRemoteConfig returns whether a received OpAMP remote config
+	// should be processed by this applier.
+	ShouldApplyRemoteConfig(config *protobufs.AgentRemoteConfig, lastHash []byte) bool
+
 	// Apply receives an OpAMP config key and applies the corresponding configuration.
 	Apply(key string, configmap *protobufs.AgentConfigFile) error
 
@@ -61,6 +66,10 @@ func NewClient(name string, log logr.Logger, c client.Client, componentsAllowed 
 		close:             make(chan bool, 1),
 		name:              name,
 	}
+}
+
+func (c Client) ShouldApplyRemoteConfig(config *protobufs.AgentRemoteConfig, lastHash []byte) bool {
+	return !bytes.Equal(lastHash, config.GetConfigHash())
 }
 
 func (c Client) Apply(key string, configmap *protobufs.AgentConfigFile) error {

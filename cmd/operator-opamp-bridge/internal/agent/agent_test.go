@@ -281,6 +281,10 @@ type mockHealthApplier struct {
 	err    error
 }
 
+func (*mockHealthApplier) ShouldApplyRemoteConfig(*protobufs.AgentRemoteConfig, []byte) bool {
+	return false
+}
+
 func (*mockHealthApplier) Apply(string, *protobufs.AgentConfigFile) error {
 	return nil
 }
@@ -298,13 +302,20 @@ func (m *mockHealthApplier) GetHealth() (operator.Health, error) {
 }
 
 type recordingConfigApplier struct {
-	applied map[string][]byte
+	applied     map[string][]byte
+	applyCalls  int
+	shouldApply bool
+}
+
+func (r *recordingConfigApplier) ShouldApplyRemoteConfig(*protobufs.AgentRemoteConfig, []byte) bool {
+	return r.shouldApply
 }
 
 func (r *recordingConfigApplier) Apply(name string, configFile *protobufs.AgentConfigFile) error {
 	if r.applied == nil {
 		r.applied = map[string][]byte{}
 	}
+	r.applyCalls++
 	r.applied[name] = configFile.Body
 	return nil
 }
@@ -371,6 +382,65 @@ func TestAgentApplyRemoteConfigRejectsEmptyBody(t *testing.T) {
 	require.Equal(t, protobufs.RemoteConfigStatuses_RemoteConfigStatuses_FAILED, status.Status)
 	assert.Contains(t, status.ErrorMessage, `remote config entry "collector" has empty body`)
 	assert.Empty(t, applier.applied)
+}
+
+func TestAgentOnMessageProcessesRepeatedRemoteConfigHash(t *testing.T) {
+	applier := &recordingConfigApplier{shouldApply: true}
+	cfg := config.NewConfig(logr.Discard())
+	cfg.Capabilities = map[config.Capability]bool{
+		config.AcceptsRemoteConfig: true,
+	}
+	cfg.HeartbeatInterval = 0
+	agent := NewAgent(logr.Discard(), applier, cfg, &mockOpampClient{}, newMockProxy(nil, nil, nil))
+	require.NoError(t, agent.Start())
+	defer agent.Shutdown()
+	msg := &types.MessageData{
+		RemoteConfig: &protobufs.AgentRemoteConfig{
+			Config: &protobufs.AgentConfigMap{
+				ConfigMap: map[string]*protobufs.AgentConfigFile{
+					"collector": {
+						Body: []byte("receivers: {}\n"),
+					},
+				},
+			},
+			ConfigHash: []byte("same-hash"),
+		},
+	}
+
+	agent.onMessage(context.Background(), msg)
+	agent.onMessage(context.Background(), msg)
+
+	assert.Equal(t, 2, applier.applyCalls)
+	assert.Equal(t, []byte("receivers: {}\n"), applier.applied["collector"])
+}
+
+func TestAgentOnMessageSkipsRemoteConfigWhenApplierDoesNotNeedApply(t *testing.T) {
+	applier := &recordingConfigApplier{shouldApply: false}
+	cfg := config.NewConfig(logr.Discard())
+	cfg.Capabilities = map[config.Capability]bool{
+		config.AcceptsRemoteConfig: true,
+	}
+	cfg.HeartbeatInterval = 0
+	mockClient := &mockOpampClient{}
+	agent := NewAgent(logr.Discard(), applier, cfg, mockClient, newMockProxy(nil, nil, nil))
+	require.NoError(t, agent.Start())
+	defer agent.Shutdown()
+
+	agent.onMessage(context.Background(), &types.MessageData{
+		RemoteConfig: &protobufs.AgentRemoteConfig{
+			Config: &protobufs.AgentConfigMap{
+				ConfigMap: map[string]*protobufs.AgentConfigFile{
+					"collector": {
+						Body: []byte("receivers: {}\n"),
+					},
+				},
+			},
+			ConfigHash: []byte("same-hash"),
+		},
+	})
+
+	assert.Equal(t, 0, applier.applyCalls)
+	assert.Nil(t, mockClient.lastStatus)
 }
 
 func TestAgent_getHealthFromApplierHealth(t *testing.T) {

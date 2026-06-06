@@ -55,6 +55,10 @@ func (c *orderCheckingKubernetesClient) Start(context.Context) error {
 
 type healthyApplier struct{}
 
+func (healthyApplier) ShouldApplyRemoteConfig(*protobufs.AgentRemoteConfig, []byte) bool {
+	return false
+}
+
 func (healthyApplier) Apply(string, *protobufs.AgentConfigFile) error {
 	return nil
 }

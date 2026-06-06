@@ -381,6 +381,66 @@ service:
 	assert.NotEmpty(t, updatedDeploy.Spec.Template.Annotations[restartAnnotation])
 }
 
+func TestScopedApplierShouldApplyRemoteConfig(t *testing.T) {
+	remoteConfig := func(hash, body string) *protobufs.AgentRemoteConfig {
+		return &protobufs.AgentRemoteConfig{
+			Config: &protobufs.AgentConfigMap{
+				ConfigMap: map[string]*protobufs.AgentConfigFile{
+					"collector": {
+						Body: []byte(body),
+					},
+				},
+			},
+			ConfigHash: []byte(hash),
+		}
+	}
+	tests := []struct {
+		name       string
+		localBody  string
+		lastHash   string
+		remoteHash string
+		want       bool
+	}{
+		{
+			name:       "different hash applies without cache lookup",
+			lastHash:   "old",
+			remoteHash: "new",
+			want:       true,
+		},
+		{
+			name:       "same hash and matching cached config skips",
+			localBody:  validCollectorConfig,
+			lastHash:   "same",
+			remoteHash: "same",
+			want:       false,
+		},
+		{
+			name:       "same hash and drifted cached config applies",
+			localBody:  "local: drifted\n",
+			lastHash:   "same",
+			remoteHash: "same",
+			want:       true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newTestClient(getFakeK8sClient(t))
+			if tt.localBody != "" {
+				cm := testConfigMap()
+				cm.Data["collector.yaml"] = tt.localBody
+				c.cmCache = getFakeK8sClient(t, cm)
+			}
+
+			got := c.ScopedApplier(testAgentConfig()).ShouldApplyRemoteConfig(
+				remoteConfig(tt.remoteHash, validCollectorConfig),
+				[]byte(tt.lastHash),
+			)
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestScopedApplierApplyRejectsUnknownRemoteName(t *testing.T) {
 	c := newTestClient(getFakeK8sClient(t, testConfigMap()))
 

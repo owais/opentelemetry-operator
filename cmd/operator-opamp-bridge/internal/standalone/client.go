@@ -4,6 +4,7 @@
 package standalone
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -38,7 +39,7 @@ type Client struct {
 	log            logr.Logger
 	k8sClient      client.Client
 	restCfg        *rest.Config
-	cmCache        cache.Cache
+	cmCache        client.Reader
 	onUpdate       func()
 	healthMux      sync.RWMutex
 	healthUpdaters map[workloadKey]func() error
@@ -252,9 +253,35 @@ func standaloneWorkloadResource(workloadType string) (string, error) {
 	}
 }
 
-func (c *Client) getConfigMapFile(namespace string, entry config.StandaloneConfigEntry) ([]byte, error) {
+func (c *Client) getCachedConfigMap(ctx context.Context, namespace, name string) (*v1.ConfigMap, bool, error) {
+	if c.cmCache == nil {
+		return nil, false, nil
+	}
 	cm := &v1.ConfigMap{}
-	if err := c.k8sClient.Get(context.Background(), client.ObjectKey{Name: entry.Name, Namespace: namespace}, cm); err != nil {
+	err := c.cmCache.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, cm)
+	if apierrors.IsNotFound(err) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return cm, true, nil
+}
+
+func (c *Client) getConfigMapFile(namespace string, entry config.StandaloneConfigEntry) ([]byte, error) {
+	ctx := context.Background()
+	if cached, ok, err := c.getCachedConfigMap(ctx, namespace, entry.Name); err != nil {
+		return nil, fmt.Errorf("failed to get cached ConfigMap %s/%s: %w", namespace, entry.Name, err)
+	} else if ok {
+		body, ok := cached.Data[entry.Key]
+		if !ok {
+			return nil, fmt.Errorf("ConfigMap %s/%s does not contain key %q", namespace, entry.Name, entry.Key)
+		}
+		return []byte(body), nil
+	}
+
+	cm := &v1.ConfigMap{}
+	if err := c.k8sClient.Get(ctx, client.ObjectKey{Name: entry.Name, Namespace: namespace}, cm); err != nil {
 		return nil, fmt.Errorf("failed to get ConfigMap %s/%s: %w", namespace, entry.Name, err)
 	}
 	body, ok := cm.Data[entry.Key]
@@ -402,6 +429,31 @@ type scopedApplier struct {
 }
 
 var _ operator.ConfigApplier = &scopedApplier{}
+
+func (s *scopedApplier) ShouldApplyRemoteConfig(remoteConfig *protobufs.AgentRemoteConfig, lastHash []byte) bool {
+	if !bytes.Equal(lastHash, remoteConfig.GetConfigHash()) {
+		return true
+	}
+
+	for remoteName, configFile := range remoteConfig.GetConfig().GetConfigMap() {
+		entry, ok := s.agent.Config[remoteName]
+		if !ok || !strings.EqualFold(entry.Kind, standaloneConfigMapKind) {
+			continue
+		}
+		cached, ok, err := s.client.getCachedConfigMap(context.Background(), s.agent.Namespace, entry.Name)
+		if err != nil {
+			s.client.log.Error(err, "failed to check cached ConfigMap key", "name", entry.Name, "namespace", s.agent.Namespace, "key", entry.Key)
+			continue
+		}
+		if !ok {
+			continue
+		}
+		if cached.Data[entry.Key] != string(configFile.GetBody()) {
+			return true
+		}
+	}
+	return false
+}
 
 func (s *scopedApplier) Apply(name string, configFile *protobufs.AgentConfigFile) error {
 	entry, ok := s.agent.Config[name]

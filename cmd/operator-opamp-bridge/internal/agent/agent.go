@@ -4,7 +4,6 @@
 package agent
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -417,8 +416,7 @@ func (agent *Agent) Shutdown() {
 // for checking if it should apply a new remote configuration. The agent will also initialize metrics based on the
 // settings received from the server. The agent is also able to update its identifier if it needs to.
 func (agent *Agent) onMessage(ctx context.Context, msg *types.MessageData) {
-	// If we received remote configuration, and it's not the same as the previously applied one
-	if agent.remoteConfigEnabled && msg.RemoteConfig != nil && !bytes.Equal(agent.lastHash, msg.RemoteConfig.GetConfigHash()) {
+	if agent.remoteConfigEnabled && msg.RemoteConfig != nil && agent.applier.ShouldApplyRemoteConfig(msg.RemoteConfig, agent.lastHash) {
 		var err error
 		status, err := agent.applyRemoteConfig(msg.RemoteConfig)
 		if err != nil {
